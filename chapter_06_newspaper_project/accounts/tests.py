@@ -22,7 +22,7 @@ class userManagerTests(TestCase):
             email="testsuperuser@example.com",
             password="testpass1234",
         )
-        self.assetEqual(admin_user.username, "testsuperuser")
+        self.assertEqual(admin_user.username, "testsuperuser")
         self.assertEqual(admin_user.email, "testsuperuser@example.com")
         self.assertTrue(admin_user.is_active)
         self.assertTrue(admin_user.is_staff)
