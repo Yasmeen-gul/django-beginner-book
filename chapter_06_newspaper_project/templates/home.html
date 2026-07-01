@@ -10,6 +10,8 @@ Hi {{ user.username }}! You are {{ user.age }} years old.
     {% csrf_token %}
     <button type="submit">Log Out</button>
 </form>
+<br/>
+<p><a class="btn btn-primary" href="{% url 'article_list' %}" role="button">View all Articles</a></p>
 {% else %}
 <p>You are not logged in</p>
 <a href="{% url 'login' %}">Log In</a> |
