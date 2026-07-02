@@ -1,19 +1,16 @@
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.views.generic import ListView, DetailView
-from django.views.generic.edit import UpdateView, DeleteView, CreateView
-from django.urls import reverse_lazy
+from django.views.generic import ListView, DetailView, FormView, CreateView, UpdateView, DeleteView
+from django.views.generic.detail import SingleObjectMixin
+from django.urls import reverse_lazy, reverse
+from django.views import View
 from .models import Article
+from .forms import CommentForm
 
-# 1. List and Detail do not usually need UserPassesTestMixin
+# 1. Standard CRUD Views
 class ArticleListView(LoginRequiredMixin, ListView):
     model = Article
     template_name = "article_list.html"
 
-class ArticleDetailView(LoginRequiredMixin, DetailView):
-    model = Article
-    template_name = "article_detail.html"
-
-# 2. CreateView: Just needs LoginRequiredMixin
 class ArticleCreateView(LoginRequiredMixin, CreateView):
     model = Article
     template_name = "article_new.html"
@@ -23,7 +20,6 @@ class ArticleCreateView(LoginRequiredMixin, CreateView):
         form.instance.author = self.request.user
         return super().form_valid(form)
 
-# 3. Update/Delete: Keep UserPassesTestMixin for authorization
 class ArticleUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Article
     fields = ("title", "body",)
@@ -39,3 +35,42 @@ class ArticleDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
 
     def test_func(self):
         return self.get_object().author == self.request.user
+
+# 2. Refactored Comment Handling
+# We use a combined view approach for ArticleDetailView to handle GET and POST
+class ArticleDetailView(LoginRequiredMixin, View):
+    def get(self, request, *args, **kwargs):
+        view = CommentGet.as_view()
+        return view(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        view = CommentPost.as_view()
+        return view(request, *args, **kwargs)
+
+class CommentGet(DetailView):
+    model = Article
+    template_name = "article_detail.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["form"] = CommentForm()
+        return context
+
+class CommentPost(LoginRequiredMixin, SingleObjectMixin, FormView):
+    model = Article
+    form_class = CommentForm
+    template_name = "article_detail.html"
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        return super().post(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        comment = form.save(commit=False)
+        comment.article = self.object
+        comment.author = self.request.user
+        comment.save()
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("article_detail", kwargs={"pk": self.object.pk})
